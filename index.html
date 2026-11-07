@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<meta name="description" content="Backyard Snack Check: a free 3-minute game. Feed the chickens, rabbits and guinea pigs only the safe snacks.">
+<title>Backyard Snack Check: feed it or toss it?</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#9fd3ff;font-family:system-ui,"Segoe UI",Arial,sans-serif;color:#1d2a1a;-webkit-tap-highlight-color:transparent;user-select:none}
+  #cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+  #top{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;font-weight:800;font-size:18px;color:#fff;text-shadow:0 2px 3px rgba(0,0,0,.45);pointer-events:none}
+  #sign{position:fixed;top:52px;left:50%;transform:translateX(-50%);width:min(560px,calc(100vw - 24px));background:#f6e7c8;border:4px solid #8a5a2b;border-radius:16px;padding:10px 14px 12px;text-align:center;box-shadow:0 6px 0 #6b4420,0 10px 20px rgba(0,0,0,.25);display:none}
+  #sign .q{font-size:13px;font-weight:800;color:#8a5a2b;letter-spacing:.06em}
+  #food{font-size:clamp(20px,5.4vw,32px);font-weight:900;line-height:1.15;margin-top:2px}
+  #timer{height:10px;background:#e2cfa8;border-radius:6px;margin-top:8px;overflow:hidden}
+  #timer i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#e5484d,#f5b83d,#5cb85c);border-radius:6px}
+  #btns{position:fixed;left:0;right:0;bottom:0;display:none;gap:12px;padding:12px 12px calc(12px + env(safe-area-inset-bottom))}
+  #btns button{flex:1;font-size:clamp(20px,5.5vw,28px);font-weight:900;padding:16px 8px;border-radius:18px;border:0;color:#fff;cursor:pointer;box-shadow:0 6px 0 rgba(0,0,0,.25)}
+  #btns button:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+  #feed{background:#3f9b48}#toss{background:#c0453b}
+  #btns small{display:block;font-size:12px;font-weight:700;opacity:.85}
+  #toast{position:fixed;left:50%;bottom:118px;transform:translateX(-50%);width:min(560px,calc(100vw - 24px));border-radius:16px;padding:12px 16px;font-size:17px;line-height:1.35;color:#fff;display:none;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+  #toast.ok{background:#2f7d38}#toast.bad{background:#a8322a}
+  #toast b{font-size:19px}#toast .src{font-size:13px;opacity:.9;margin-top:4px}#toast .tap{font-size:12px;opacity:.85;margin-top:6px}
+  #intro{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);font-size:clamp(28px,8vw,52px);font-weight:900;color:#fff;text-shadow:0 4px 0 #2b4a1e,0 8px 20px rgba(0,0,0,.4);display:none;text-align:center;pointer-events:none}
+  .screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(20,40,20,.35)}
+  .panel{background:#fffaf0;border:5px solid #8a5a2b;border-radius:22px;max-width:520px;width:100%;padding:20px 20px 16px;text-align:center;box-shadow:0 10px 0 #6b4420,0 20px 40px rgba(0,0,0,.35);max-height:calc(100vh - 32px);overflow:auto}
+  .panel h1{margin:0;font-size:clamp(28px,8vw,42px);line-height:1.05;color:#3a6b26}
+  .panel p{font-size:17px;line-height:1.4;margin:10px 0}
+  .big{display:block;width:100%;font-size:22px;font-weight:900;padding:14px;border-radius:16px;border:0;margin-top:10px;cursor:pointer;color:#fff;background:#3f9b48;box-shadow:0 5px 0 #2b6d32;text-decoration:none}
+  .big.yt{background:#d83a35;box-shadow:0 5px 0 #9c2622}
+  .big.shop{background:#e8861f;box-shadow:0 5px 0 #a65c10}
+  .big.again{background:#4a7fc1;box-shadow:0 5px 0 #315a8c}
+  .how{display:flex;gap:10px;justify-content:center;margin:12px 0 4px;font-size:16px;font-weight:700}
+  .how span{background:#f1e6cf;border-radius:12px;padding:8px 10px}
+  .miss{text-align:left;font-size:15px;line-height:1.35;background:#f7efe0;border-radius:12px;padding:8px 12px;margin:10px 0}
+  .miss div{margin:5px 0}
+  .fine{font-size:12px;color:#6d6252;margin-top:12px}
+  #score{font-size:44px;font-weight:900;color:#3a6b26;margin:4px 0}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="top"><span id="round">🐔 Chickens</span><span id="hearts">❤️❤️❤️</span><span id="pts">0</span></div>
+<div id="sign"><div class="q" id="ask">IS THIS SAFE FOR CHICKENS?</div><div id="food"></div><div id="timer"><i id="tbar"></i></div></div>
+<div id="intro"></div>
+<div id="toast"></div>
+<div id="btns"><button id="feed">🥣 FEED IT<small>← or A</small></button><button id="toss">🗑️ TOSS IT<small>→ or D</small></button></div>
+<div class="screen" id="title"><div class="panel">
+  <h1>Backyard<br>Snack Check</h1>
+  <p>The animals are hungry! Some snacks are safe. Some can make them very sick.</p>
+  <div class="how"><span>🥣 FEED if it's safe</span><span>🗑️ TOSS if it's not</span></div>
+  <p>3 rounds: 🐔 chickens, 🐰 rabbits, 🐹 guinea pigs. You have 3 hearts. Be quick for bonus points!</p>
+  <button class="big" id="play">▶ PLAY</button>
+  <div class="fine">Every answer comes from the source named on its card. General info only, not vet advice. Drag the yard to look around.</div>
+</div></div>
+<div class="screen" id="end" style="display:none"><div class="panel">
+  <h1 id="rank">Good Keeper!</h1>
+  <div id="score">0</div>
+  <p id="right"></p>
+  <div class="miss" id="missed"></div>
+  <a class="big yt" id="yt" target="_blank" rel="noopener noreferrer">▶ Watch backyard videos on YouTube</a>
+  <a class="big shop" id="chart" target="_blank" rel="noopener noreferrer">📄 Get the printable chart</a>
+  <button class="big again" id="again">↻ Play again</button>
+  <div class="fine" id="doubt"></div>
+</div></div>
+<noscript><p style="position:fixed;top:40%;width:100%;text-align:center;font-size:20px">Turn on JavaScript to play.</p></noscript>
+<script>/*SNACK-DATA*/window.SNACK={"rounds":[{"id":"chicken","name":"Chickens","emoji":"🐔","items":[{"food":"Avocado — skin, pit & leaves","safe":false,"why":"Its poison, persin, can stop a bird's heart","src":["UF/IFAS Extension","Merck Vet. Manual"]},{"food":"Chocolate, candy & sugar","safe":false,"why":"Chocolate's caffeine-family poisons hit the heart","src":["UF/IFAS Extension","Merck Vet. Manual"]},{"food":"Beans — raw, dry, or half-cooked","safe":false,"why":"Raw beans hold lectins; toxic to birds","src":["UF/IFAS Extension","Cornell Univ.","Univ. of Kentucky Ext."]},{"food":"Green potato peels & sprouts","safe":false,"why":"Solanine — cooking does not destroy it","src":["UF/IFAS Extension","Cornell Univ."]},{"food":"Rhubarb & nightshade leaves (tomato, potato, pepper, eggplant plants)","safe":false,"why":"The plants and vines are toxic — fruit is not the leaf","src":["UF/IFAS Extension","Cornell Univ."]},{"food":"Onions & garlic","safe":false,"why":"Can break down red blood cells; taints eggs","src":["Merck Vet. Manual","Univ. of Kentucky Ext."]},{"food":"Salty foods & salty scraps","safe":false,"why":"Poultry are extra sensitive to salt poisoning","src":["UF/IFAS Extension","Merck Vet. Manual"]},{"food":"Moldy or rotten anything","safe":false,"why":"Mold toxins sicken flocks; rot can breed botulism","src":["UF/IFAS Extension","Univ. of Kentucky Ext.","Utah State Ext."]},{"food":"Raw yeast dough","safe":false,"why":"Swells in the crop and makes alcohol","src":["Merck Vet. Manual"]},{"food":"Peach & cherry family pits and leaves","safe":false,"why":"Pits and leaves can form cyanide","src":["Merck Vet. Manual"]},{"food":"Alcohol & tobacco","safe":false,"why":"On the university never-list","src":["UF/IFAS Extension"]},{"food":"Leafy greens & lettuce","safe":true,"why":"Greens even help keep yolks deep yellow","src":["Univ. of Kentucky Ext.","Oregon State Ext."]},{"food":"Veggie peels & trimmings","safe":true,"why":"The classic treat scrap — fresh, not rotten","src":["Univ. of Kentucky Ext.","UF/IFAS Extension"]},{"food":"Stale bread","safe":true,"why":"Stale is fine — moldy never is","src":["Univ. of Kentucky Ext."]},{"food":"Scratch grains — cracked corn, oats, wheat, barley","safe":true,"why":"A treat, not a meal — see the Go-Easy rules","src":["Univ. of Kentucky Ext.","Oregon State Ext.","Univ. of Maryland Ext."]},{"food":"Grass & tender young plants","safe":true,"why":"Only from unsprayed ground","src":["Univ. of Kentucky Ext."]},{"food":"Bugs & grubs — crickets, grasshoppers, mealworms, fly larvae, earthworms","safe":true,"why":"Tested safe as chicken feed","src":["Univ. of Kentucky Ext."]},{"food":"Free-range finds — seeds, greens & bugs they forage","safe":true,"why":"Covers only 5 to 20% of what they need","src":["Univ. of Maryland Ext.","UF/IFAS Extension"]},{"food":"Oyster shell — free choice, for laying hens","safe":true,"why":"For strong shells; layers only","src":["Univ. of Kentucky Ext.","Univ. of Maryland Ext."]},{"food":"Grit — small stones for grinding food","safe":true,"why":"Needed with any whole grain or forage","src":["Univ. of Kentucky Ext.","UF/IFAS Extension"]}],"doubt":"Not sure about a food? Skip it, or ask your county Extension office — the advice is free.","chart":"https://www.etsy.com/listing/4553305843"},{"id":"rabbit","name":"Rabbits","emoji":"🐰","items":[{"food":"Avocado — fruit, seeds, stems & leaves","safe":false,"why":"Damages the heart — rabbits are on the vet list by name","src":["Merck Vet. Manual","House Rabbit Society Chicago","RSPCA (UK)"]},{"food":"Onion & garlic","safe":false,"why":"On the avoid lists of three welfare groups","src":["RSPCA Australia","House Rabbit Society Chicago","RSPCA (UK)"]},{"food":"Rhubarb","safe":false,"why":"Named on the toxic-plant list, never on the safe list","src":["RSPCA Australia","RSPCA (UK)"]},{"food":"Chocolate","safe":false,"why":"Named as a food to avoid by four sources","src":["Rabbit.org","House Rabbit Society Chicago","RSPCA Australia","RSPCA (UK)"]},{"food":"Bread, pasta, crackers & breakfast cereal","safe":false,"why":"Human starchy foods — named avoid by three sources","src":["Rabbit.org","RSPCA Australia","RSPCA (UK)"]},{"food":"Seeds, nuts, dried corn & muesli-style mixes","safe":false,"why":"On three avoid lists — mixes harm teeth and gut","src":["House Rabbit Society Chicago","RSPCA Australia","RSPCA (UK)"]},{"food":"Potatoes — raw, cooked, or unripe","safe":false,"why":"On three avoid lists; unripe potato is poisonous","src":["House Rabbit Society Chicago","RSPCA Australia","RSPCA (UK)"]},{"food":"Corn, beans & peas","safe":false,"why":"High in sugar and carbs — named to avoid","src":["RSPCA Australia","RSPCA (UK)","House Rabbit Society Chicago"]},{"food":"Fresh-cut lawn clippings","safe":false,"why":"Named avoid by two RSPCA pages — can make rabbits ill","src":["RSPCA Australia","RSPCA (UK)"]},{"food":"Grass hay — timothy and other grass hay","safe":true,"why":"Unlimited, day and night. Hay IS the diet","src":["RSPCA (UK)","Rabbit.org","Merck Vet. Manual"]},{"food":"Leaf lettuces — romaine, red leaf, green leaf","safe":true,"why":"Fine to feed. Skip iceberg: the RSPCA (UK) lists it as a food to avoid","src":["House Rabbit Society Chicago","RSPCA (UK)"]},{"food":"Parsley","safe":true,"why":"On two safe lists. Skip it if a rabbit has urinary problems","src":["RSPCA (UK)","House Rabbit Society Chicago","RSPCA Australia"]},{"food":"Cilantro","safe":true,"why":"A safe herb, good for rotating in","src":["House Rabbit Society Chicago"]},{"food":"Dandelion greens & leaves","safe":true,"why":"Only from a spot no pesticide has touched","src":["RSPCA (UK)","House Rabbit Society Chicago","RSPCA Australia"]},{"food":"Basil","safe":true,"why":"On the safe-vegetable list","src":["House Rabbit Society Chicago"]},{"food":"Celery","safe":true,"why":"Safe, but only now and then","src":["RSPCA (UK)","RSPCA Australia"]},{"food":"Broccoli","safe":true,"why":"Safe, but RSPCA Australia says it can cause gas","src":["RSPCA (UK)","RSPCA Australia"]},{"food":"Greens to rotate — kale, watercress, mint, bok choy, beet tops","safe":true,"why":"Mix them up — variety is the whole point of a green plate","src":["House Rabbit Society Chicago","RSPCA (UK)"]},{"food":"Plain grass-hay pellets — a measured scoop","safe":true,"why":"No more than 5% of the diet, and no add-ins","src":["Rabbit.org","RSPCA Australia","House Rabbit Society Chicago"]}],"doubt":"Not sure about a food? Leave it out. A skipped extra never hurt a rabbit with a full hay rack.","chart":"https://www.etsy.com/listing/4579413675"},{"id":"guinea","name":"Guinea pigs","emoji":"🐹","items":[{"food":"Avocado — fruit, pit, stems & leaves","safe":false,"why":"Its poison, persin, hurts the heart — guinea pigs are on the vet list","src":["Merck Vet. Manual"]},{"food":"Chocolate, cocoa & anything with caffeine","safe":false,"why":"Caffeine-family poisons that race the heart","src":["Merck Vet. Manual"]},{"food":"Onion family — onion, garlic, chives, leeks","safe":false,"why":"Can break down animals' red blood cells","src":["Merck Vet. Manual","PDSA"]},{"food":"Iceberg lettuce","safe":false,"why":"Mostly water. Merck, RSPCA and PDSA all say avoid it","src":["Merck Vet. Manual","RSPCA","PDSA"]},{"food":"Lawnmower clippings","safe":false,"why":"Clippings ferment fast and can make a pig very ill","src":["RSPCA","PDSA"]},{"food":"Candy, sugary treats & yogurt drops","safe":false,"why":"Too much sugar can upset the gut: gas, bloating, pain","src":["Merck Vet. Manual","PDSA"]},{"food":"Green potato parts & nightshade leaves","safe":false,"why":"Solanine — and cooking does not destroy it","src":["Cornell Univ."]},{"food":"Meat, dairy & anything from an animal","safe":false,"why":"Guinea pigs are strict plant-eaters","src":["Merck Vet. Manual"]},{"food":"Grass hay — timothy, orchard & other grass hay","safe":true,"why":"Always available. Hay is 85 to 90 percent of the diet","src":["PDSA","Merck Vet. Manual"]},{"food":"Bell peppers — red or green","safe":true,"why":"A top vitamin C food, fine to feed often","src":["RSPCA","Merck Vet. Manual"]},{"food":"Leaf lettuces — romaine, red leaf, green leaf","safe":true,"why":"The lettuces that ARE fine — iceberg is the one to skip","src":["Merck Vet. Manual","RSPCA"]},{"food":"Tomato — the ripe fruit only","safe":true,"why":"The fruit is food. The vine and leaves are poison","src":["PDSA","Merck Vet. Manual","Cornell Univ."]},{"food":"Cucumber","safe":true,"why":"Low in sugar. Fine to feed often","src":["RSPCA","Merck Vet. Manual"]},{"food":"A mix of veggies & greens — 5 or 6 kinds a day","safe":true,"why":"Rotate them: a varied plate protects the bladder","src":["PDSA","Merck Vet. Manual"]},{"food":"Carrot tops — the leafy greens","safe":true,"why":"The tops are a green. The orange root is the sugary part","src":["Merck Vet. Manual"]},{"food":"Turnip greens — a vitamin C green","safe":true,"why":"On Merck's list of high vitamin C foods","src":["Merck Vet. Manual"]},{"food":"Fortified guinea pig pellets — a measured scoop","safe":true,"why":"1 to 2 tablespoons a day of plain, grass-based pellets, never a muesli mix","src":["PDSA","Merck Vet. Manual"]}],"doubt":"Not sure about a food? Skip it. Hay already makes up 85 to 90 percent of the diet, so one skipped mystery veggie is the safe call.","chart":"https://www.etsy.com/listing/4563778801"}],"shop":"https://www.etsy.com/shop/ForrestFinds5433","youtube":"https://www.youtube.com/@rootedinthefuture/videos","src_sha":{"What Can Chickens Eat Chart":"944dac3c0830a73c","Rabbit Safe Foods Chart":"72c5dc880bb56897","What Can Guinea Pigs Eat Chart":"f9a1cee5298324fd"}};/*END-SNACK-DATA*/</script>
+<script>
+(function () {
+'use strict';
+var D = window.SNACK;
+var qs = new URLSearchParams(location.search);
+var TEST = qs.get('test') === '1';
+var SPEED = TEST ? 0.05 : 1;           // test mode squeezes every timer
+var seed = (+qs.get('seed')) || ((Date.now() % 2147483646) + 1);
+function rand() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
+function $(id) { return document.getElementById(id); }
+function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(rand() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+window.__errs = []; window.addEventListener('error', function (e) { window.__errs.push(String(e.message || e)); });
+
+// ================= tiny 3D engine (canvas 2D, flat-shaded, outlined, planar shadows) =================
+var cv = $('cv'), ctx = cv.getContext('2d'), sh = document.createElement('canvas'), sctx = sh.getContext('2d');
+var W = 0, H = 0, DPR = 1, F = 800;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2); W = cv.clientWidth || innerWidth; H = cv.clientHeight || innerHeight;
+  cv.width = sh.width = Math.round(W * DPR); cv.height = sh.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); sctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  F = Math.min(W * 1.3, H * 1.05); cam.dist = W < 600 ? 13.5 : 15.5;
+}
+var LIGHT = norm([-0.45, 0.95, 0.5]), SKY = [159, 211, 255];
+function norm(v) { var l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; }
+function hex(h) { return [(h >> 16) & 255, (h >> 8) & 255, h & 255]; }
+function box(x, y, z, w, h, d, col) {
+  var c = hex(col), x0 = x - w / 2, x1 = x + w / 2, y0 = y, y1 = y + h, z0 = z - d / 2, z1 = z + d / 2;
+  return [
+    { p: [[x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1]], n: [0, 1, 0], c: c },
+    { p: [[x0, y0, z1], [x1, y0, z1], [x1, y0, z0], [x0, y0, z0]], n: [0, -1, 0], c: c },
+    { p: [[x0, y0, z1], [x0, y1, z1], [x1, y1, z1], [x1, y0, z1]], n: [0, 0, 1], c: c },
+    { p: [[x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [x0, y0, z0]], n: [0, 0, -1], c: c },
+    { p: [[x1, y0, z1], [x1, y1, z1], [x1, y1, z0], [x1, y0, z0]], n: [1, 0, 0], c: c },
+    { p: [[x0, y0, z0], [x0, y1, z0], [x0, y1, z1], [x0, y0, z1]], n: [-1, 0, 0], c: c }];
+}
+function roof(x, y, z, w, h, d, col, side) { // gable roof, ridge along x
+  var c = hex(col), s = hex(side), x0 = x - w / 2, x1 = x + w / 2, z0 = z - d / 2, z1 = z + d / 2, yt = y + h, L = Math.hypot(d / 2, h);
+  return [
+    { p: [[x0, y, z1], [x1, y, z1], [x1, yt, z], [x0, yt, z]], n: [0, (d / 2) / L, h / L], c: c },
+    { p: [[x1, y, z0], [x0, y, z0], [x0, yt, z], [x1, yt, z]], n: [0, (d / 2) / L, -h / L], c: c },
+    { p: [[x1, y, z1], [x1, y, z0], [x1, yt, z]], n: [1, 0, 0], c: s },
+    { p: [[x0, y, z0], [x0, y, z1], [x0, yt, z]], n: [-1, 0, 0], c: s }];
+}
+function cyl(x, y, z, r, h, seg, col, rimCol) {
+  var c = hex(col), f = [], top = [];
+  for (var i = 0; i < seg; i++) {
+    var a0 = i / seg * 6.2832, a1 = (i + 1) / seg * 6.2832, am = (a0 + a1) / 2;
+    f.push({ p: [[x + Math.cos(a0) * r, y, z + Math.sin(a0) * r], [x + Math.cos(a1) * r, y, z + Math.sin(a1) * r], [x + Math.cos(a1) * r, y + h, z + Math.sin(a1) * r], [x + Math.cos(a0) * r, y + h, z + Math.sin(a0) * r]], n: [Math.cos(am), 0, Math.sin(am)], c: c });
+    top.push([x + Math.cos(a0) * r, y + h, z + Math.sin(a0) * r]);
+  }
+  f.push({ p: top, n: [0, 1, 0], c: hex(rimCol || col) });
+  return f;
+}
+function obj(faces, x, y, z, shadow) { return { f: faces, x: x || 0, y: y || 0, z: z || 0, ry: 0, s: 1, sy: 1, on: true, shadow: shadow !== false }; }
+var cam = { yaw: 0, pitch: 0.44, dist: 15.5, tx: 0, ty: 1.3, tz: 0.6, drag: 0 };
+function basis() {
+  var cp = Math.cos(cam.pitch), yaw = cam.yaw + cam.drag;
+  var e = [cam.tx + Math.sin(yaw) * cam.dist * cp, cam.ty + Math.sin(cam.pitch) * cam.dist, cam.tz + Math.cos(yaw) * cam.dist * cp];
+  var f = norm([cam.tx - e[0], cam.ty - e[1], cam.tz - e[2]]), r = norm([-f[2], 0, f[0]]);
+  var u = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]];
+  return { e: e, f: f, r: r, u: u };
+}
+function xf(o, p) { // object local -> world (scale, squash, yaw, move)
+  var c = Math.cos(o.ry), s = Math.sin(o.ry), x = p[0] * o.s, y = p[1] * o.s * o.sy, z = p[2] * o.s;
+  return [o.x + x * c + z * s, o.y + y, o.z - x * s + z * c];
+}
+function xn(o, n) { var c = Math.cos(o.ry), s = Math.sin(o.ry); return [n[0] * c + n[2] * s, n[1], -n[0] * s + n[2] * c]; }
+function colr(c, k, fog) {
+  var r = c[0] * k, g = c[1] * k, b = c[2] * k;
+  r += (SKY[0] - r) * fog; g += (SKY[1] - g) * fog; b += (SKY[2] - b) * fog;
+  return 'rgb(' + Math.min(255, r | 0) + ',' + Math.min(255, g | 0) + ',' + Math.min(255, b | 0) + ')';
+}
+function draw(groundObjs, objs) {
+  var B = basis(), E = B.e, list = [], i, j;
+  var sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#6fb6f0'); sky.addColorStop(0.55, '#bfe3ff'); sky.addColorStop(1, '#d9f0ff');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(255,244,190,.95)'; ctx.beginPath(); ctx.arc(W * 0.84, H * 0.12, Math.min(W, H) * 0.06, 0, 6.2832); ctx.fill();
+  function proj(p) {
+    var vx = p[0] - E[0], vy = p[1] - E[1], vz = p[2] - E[2], cz = vx * B.f[0] + vy * B.f[1] + vz * B.f[2];
+    if (cz < 0.3) return null;
+    return [W / 2 + (vx * B.r[0] + vy * B.r[1] + vz * B.r[2]) * F / cz, H * 0.56 - (vx * B.u[0] + vy * B.u[1] + vz * B.u[2]) * F / cz, cz];
+  }
+  function collect(o, out, cull) {
+    for (var k = 0; k < o.f.length; k++) {
+      var fc = o.f[k], wp = [], cx = 0, cy = 0, cz = 0;
+      for (j = 0; j < fc.p.length; j++) { var w = xf(o, fc.p[j]); wp.push(w); cx += w[0]; cy += w[1]; cz += w[2]; }
+      cx /= wp.length; cy /= wp.length; cz /= wp.length;
+      var n = xn(o, fc.n);
+      if (cull && (n[0] * (E[0] - cx) + n[1] * (E[1] - cy) + n[2] * (E[2] - cz)) <= 0) continue;
+      var pts = [], depth = 0, bad = false;
+      for (j = 0; j < wp.length; j++) { var s = proj(wp[j]); if (!s) { bad = true; break; } pts.push(s); depth += s[2]; }
+      if (bad) continue;
+      depth /= pts.length;
+      var lam = 0.5 + 0.62 * Math.max(0, n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2]);
+      var fog = Math.max(0, Math.min(0.55, (depth - 20) / 45));
+      out.push({ d: depth, pts: pts, fill: colr(fc.c, lam, fog), edge: colr(fc.c, lam * 0.72, fog) });
+    }
+  }
+  function poly(pts) { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (var q = 1; q < pts.length; q++) ctx.lineTo(pts[q][0], pts[q][1]); ctx.closePath(); }
+  // 1) ground (no sort needed beyond far-first)
+  var g = []; for (i = 0; i < groundObjs.length; i++) if (groundObjs[i].on) collect(groundObjs[i], g, false);
+  g.sort(function (a, b) { return b.d - a.d; });
+  ctx.lineWidth = 1;
+  for (i = 0; i < g.length; i++) { poly(g[i].pts); ctx.fillStyle = g[i].fill; ctx.fill(); ctx.strokeStyle = g[i].fill; ctx.stroke(); }
+  // 2) shadows: every caster face pressed onto the ground along the sun, drawn solid then laid down at 26 %
+  sctx.clearRect(0, 0, W, H); sctx.fillStyle = '#000';
+  for (i = 0; i < objs.length; i++) {
+    var o = objs[i]; if (!o.on || !o.shadow) continue;
+    for (var k = 0; k < o.f.length; k++) {
+      var fc = o.f[k], pts = [], ok = true;
+      for (j = 0; j < fc.p.length; j++) {
+        var w = xf(o, fc.p[j]), t = w[1] / LIGHT[1], s = proj([w[0] - LIGHT[0] * t, 0.02, w[2] - LIGHT[2] * t]);
+        if (!s) { ok = false; break; } pts.push(s);
+      }
+      if (!ok) continue;
+      sctx.beginPath(); sctx.moveTo(pts[0][0], pts[0][1]); for (j = 1; j < pts.length; j++) sctx.lineTo(pts[j][0], pts[j][1]); sctx.closePath(); sctx.fill();
+    }
+  }
+  ctx.globalAlpha = 0.26; ctx.drawImage(sh, 0, 0, W, H); ctx.globalAlpha = 1;
+  // 3) everything else, far first, outlined for definition
+  for (i = 0; i < objs.length; i++) if (objs[i].on) collect(objs[i], list, true);
+  list.sort(function (a, b) { return b.d - a.d; });
+  ctx.lineJoin = 'round';
+  for (i = 0; i < list.length; i++) { poly(list[i].pts); ctx.fillStyle = list[i].fill; ctx.fill(); ctx.strokeStyle = list[i].edge; ctx.lineWidth = 1.2; ctx.stroke(); }
+  return list.length + g.length;
+}
+
+// ================= the yard =================
+var ground = [], scene = [];
+(function buildYard() {
+  for (var gx = -30; gx < 30; gx += 3) for (var gz = -27; gz < 12; gz += 3) {
+    var dirt = Math.abs(gx + 1.5) < 6 && gz + 1.5 > -3 && gz + 1.5 < 6;
+    var col = dirt ? ((gx / 3 + gz / 3) & 1 ? 0xb88a5a : 0xae8052) : ((gx / 3 + gz / 3) & 1 ? 0x77b84f : 0x6dae47);
+    ground.push(obj([{ p: [[gx, 0, gz], [gx + 3, 0, gz], [gx + 3, 0, gz + 3], [gx, 0, gz + 3]], n: [0, 1, 0], c: hex(col) }], 0, 0, 0, false));
+  }
+  var hills = [].concat(box(-18, 0, -30, 26, 5, 4, 0x5a9a44), box(10, 0, -32, 30, 7, 4, 0x4f8c3d), box(30, 0, -28, 14, 4, 4, 0x5a9a44));
+  scene.push(obj(hills, 0, 0, 0, false));
+  var fence = [];
+  for (var x = -13; x <= 13; x += 2.6) fence = fence.concat(box(x, 0, -9, 0.32, 1.8, 0.32, 0xe9e2d0), roof(x, 1.8, -9, 0.32, 0.25, 0.32, 0xe9e2d0, 0xd9d0bb));
+  for (var z = -6.4; z <= 6; z += 2.6) { fence = fence.concat(box(-13, 0, z, 0.32, 1.8, 0.32, 0xe9e2d0), box(13, 0, z, 0.32, 1.8, 0.32, 0xe9e2d0)); }
+  fence = fence.concat(box(0, 1.25, -9, 26.4, 0.22, 0.12, 0xf3eddf), box(0, 0.6, -9, 26.4, 0.22, 0.12, 0xf3eddf),
+    box(-13, 1.25, -1.5, 0.12, 0.22, 15, 0xf3eddf), box(13, 1.25, -1.5, 0.12, 0.22, 15, 0xf3eddf));
+  scene.push(obj(fence, 0, 0, 0));
+  var bed = [].concat(box(8, 0, -4.8, 4.6, 0.55, 2.4, 0x7a4f2c));
+  for (var k = 0; k < 6; k++) bed = bed.concat(box(6.4 + k * 0.64, 0.55, -4.8 + (k % 2 ? 0.45 : -0.45), 0.5, 0.5 + (k % 3) * 0.18, 0.5, k % 2 ? 0x4c9a3c : 0x3f8a35));
+  bed = bed.concat(box(6.6, 1.0, -4.4, 0.3, 0.3, 0.3, 0xe5484d), box(8.6, 1.15, -5.2, 0.28, 0.28, 0.28, 0xf5b83d));
+  scene.push(obj(bed, 0, 0, 0));
+  var tree = [].concat(box(-10, 0, -6.5, 0.7, 2.6, 0.7, 0x7a5232), box(-10, 2.4, -6.5, 3.2, 1.4, 3.2, 0x3f8a35), box(-10, 3.7, -6.5, 2.3, 1.2, 2.3, 0x4c9a3c), box(-10, 4.8, -6.5, 1.3, 0.9, 1.3, 0x5aa846));
+  scene.push(obj(tree, 0, 0, 0));
+  var tree2 = [].concat(box(11, 0, -7.6, 0.6, 2.2, 0.6, 0x7a5232), box(11, 2.0, -7.6, 2.6, 1.3, 2.6, 0x4c9a3c), box(11, 3.2, -7.6, 1.7, 1.0, 1.7, 0x5aa846));
+  scene.push(obj(tree2, 0, 0, 0));
+})();
+var coop = obj([].concat(box(0, 0, 0, 4.4, 2.6, 3.4, 0xb6463a), roof(0, 2.6, 0, 5.0, 1.5, 4.0, 0x5b3a2a, 0xa13d33),
+  box(0.4, 0.0, 1.71, 1.1, 1.6, 0.05, 0x3b2418), box(-1.3, 1.2, 1.71, 0.9, 0.7, 0.05, 0xf3e3b5), box(-1.3, 1.55, 1.73, 0.9, 0.06, 0.05, 0xe9e2d0),
+  box(0.4, 0, 2.3, 1.0, 0.18, 1.3, 0xc49a6c)), -7, 0, -4.2);
+var hutch = obj([].concat(box(-1.8, 0, -1.1, 0.25, 1.0, 0.25, 0x7a5232), box(1.8, 0, -1.1, 0.25, 1.0, 0.25, 0x7a5232), box(-1.8, 0, 1.1, 0.25, 1.0, 0.25, 0x7a5232), box(1.8, 0, 1.1, 0.25, 1.0, 0.25, 0x7a5232),
+  box(0, 1.0, 0, 4.2, 1.9, 2.6, 0x4f7ea8), roof(0, 2.9, 0, 4.7, 1.0, 3.1, 0x34506b, 0x456f93),
+  box(0.9, 1.25, 1.31, 1.8, 1.3, 0.05, 0x2a3640), box(-1.1, 1.25, 1.31, 1.4, 1.3, 0.05, 0x9c6b3f), box(0, 1.0, 1.4, 4.2, 0.12, 0.2, 0x34506b)), -7, 0, -4.2);
+var bowl = obj([].concat(cyl(0, 0, 0, 0.85, 0.42, 14, 0x9aa4ad, 0x5d666e), cyl(0, 0.42, 0, 0.6, 0.02, 14, 0xd6b25e, 0xd6b25e)), -3.0, 0, 2.1);
+var bin = obj([].concat(box(0, 0, 0, 1.5, 1.5, 1.4, 0x3f6d3a), box(0, 1.5, 0, 1.65, 0.14, 1.55, 0x2f5530), box(0, 0.75, 0.71, 0.9, 0.12, 0.05, 0x9cc28e)), 3.6, 0, 2.1);
+function chicken() {
+  return [].concat(box(-0.3, 0, 0.1, 0.13, 0.55, 0.13, 0xf0a020), box(0.3, 0, 0.1, 0.13, 0.55, 0.13, 0xf0a020),
+    box(0, 0.5, 0, 1.25, 1.0, 1.55, 0xf7f3ea), box(0, 1.0, -0.85, 0.9, 0.8, 0.45, 0xeee8da),
+    box(-0.68, 0.7, -0.05, 0.14, 0.62, 0.95, 0xe6dfcf), box(0.68, 0.7, -0.05, 0.14, 0.62, 0.95, 0xe6dfcf),
+    box(0, 1.4, 0.55, 0.66, 0.7, 0.62, 0xf7f3ea), box(0, 2.1, 0.55, 0.2, 0.32, 0.5, 0xd8352f),
+    box(0, 1.62, 0.98, 0.24, 0.17, 0.32, 0xf0a020), box(0, 1.3, 0.92, 0.15, 0.26, 0.12, 0xd8352f),
+    box(-0.21, 1.78, 0.87, 0.11, 0.13, 0.04, 0x1d1d1d), box(0.21, 1.78, 0.87, 0.11, 0.13, 0.04, 0x1d1d1d));
+}
+function rabbit() {
+  return [].concat(box(0, 0, -0.35, 1.4, 0.75, 0.9, 0x9a7b5c), box(0, 0, 0, 1.2, 1.05, 1.5, 0xa88a6a),
+    box(-0.3, 0, 0.78, 0.24, 0.24, 0.32, 0xb39572), box(0.3, 0, 0.78, 0.24, 0.24, 0.32, 0xb39572),
+    box(0, 0.95, 0.62, 0.84, 0.76, 0.72, 0xa88a6a), box(0, 0.45, -0.85, 0.36, 0.36, 0.3, 0xf7f3ea),
+    box(-0.21, 1.7, 0.5, 0.24, 1.05, 0.13, 0xa88a6a), box(0.21, 1.7, 0.5, 0.24, 1.05, 0.13, 0xa88a6a),
+    box(-0.21, 1.82, 0.575, 0.12, 0.82, 0.02, 0xf2b8c0), box(0.21, 1.82, 0.575, 0.12, 0.82, 0.02, 0xf2b8c0),
+    box(-0.26, 1.36, 0.985, 0.11, 0.13, 0.04, 0x1d1d1d), box(0.26, 1.36, 0.985, 0.11, 0.13, 0.04, 0x1d1d1d), box(0, 1.15, 0.99, 0.14, 0.09, 0.04, 0xe88a9a));
+}
+function guinea() {
+  return [].concat(box(0, 0.05, -0.45, 1.35, 0.85, 0.85, 0x8a5a33), box(0, 0.05, 0.3, 1.32, 0.88, 0.8, 0xf6efe2),
+    box(0, 0.12, 0.92, 0.95, 0.72, 0.6, 0x8a5a33), box(0, 0.12, 1.12, 0.5, 0.42, 0.25, 0xf6efe2),
+    box(-0.34, 0.86, 0.88, 0.26, 0.14, 0.12, 0xc98f74), box(0.34, 0.86, 0.88, 0.26, 0.14, 0.12, 0xc98f74),
+    box(-0.3, 0.6, 1.225, 0.11, 0.12, 0.04, 0x1d1d1d), box(0.3, 0.6, 1.225, 0.11, 0.12, 0.04, 0x1d1d1d), box(0, 0.42, 1.25, 0.13, 0.08, 0.04, 0xe88a9a),
+    box(-0.4, 0, 0.7, 0.2, 0.08, 0.25, 0xe2a48a), box(0.4, 0, 0.7, 0.2, 0.08, 0.25, 0xe2a48a));
+}
+var animals = { chicken: obj(chicken(), 0, 0, -0.4), rabbit: obj(rabbit(), 0, 0, -0.4), guinea: obj(guinea(), 0, 0, -0.4) };
+var PALETTE = [0x6fbf4a, 0xe5484d, 0xf5b83d, 0x8e5bd0, 0xe8861f, 0x4aa3df, 0xf2d24b, 0x9c6b3f];
+function crateFor(food) {
+  var h = 0; for (var i = 0; i < food.length; i++) h = (h * 31 + food.charCodeAt(i)) >>> 0;  // colour from the NAME only, never the answer
+  var c1 = PALETTE[h % 8], c2 = PALETTE[(h >> 3) % 8], c3 = PALETTE[(h >> 6) % 8];
+  return [].concat(box(0, 0, 0, 1.3, 0.8, 1.1, 0xc08a52), box(0, 0.25, 0.56, 1.32, 0.12, 0.03, 0x8f6235), box(0, 0.55, 0.56, 1.32, 0.12, 0.03, 0x8f6235),
+    box(-0.32, 0.8, 0.1, 0.42, 0.36, 0.42, c1), box(0.28, 0.8, -0.15, 0.4, 0.44, 0.4, c2), box(0.05, 0.8, 0.28, 0.32, 0.28, 0.32, c3));
+}
+var crate = obj([], 0, 0, 3.4); crate.on = false;
+
+// ================= game =================
+var S = { state: 'title', round: 0, idx: 0, items: [], lives: 3, score: 0, streak: 0, right: 0, total: 0, missed: [], t0: 0, limit: 0, anim: null, mood: null, wait: 0, log: [] };
+var ROUND_SECONDS = [9, 8, 7];
+function setRound(r) {
+  S.round = r; S.idx = 0; var R = D.rounds[r];
+  var nv = shuffle(R.items.filter(function (i) { return !i.safe; }).slice()).slice(0, 4);
+  var sf = shuffle(R.items.filter(function (i) { return i.safe; }).slice()).slice(0, 4);
+  S.items = shuffle(nv.concat(sf));
+  Object.keys(animals).forEach(function (k) { animals[k].on = k === R.id; });
+  coop.on = R.id === 'chicken'; hutch.on = !coop.on;
+  $('round').textContent = R.emoji + ' ' + R.name + ' · ' + (r + 1) + '/3';
+  $('ask').textContent = 'IS THIS SAFE FOR ' + R.name.toUpperCase() + '?';
+  intro(R.emoji + ' Round ' + (r + 1), R.name);
+}
+function intro(a, b) { var el = $('intro'); el.textContent = a; el.appendChild(document.createElement('br')); el.appendChild(document.createTextNode(b)); el.style.display = 'block'; S.state = 'intro'; S.wait = now() + 1500 * SPEED; }
+function now() { return performance.now(); }
+function hearts() { $('hearts').textContent = '❤️'.repeat(Math.max(0, S.lives)) + '🤍'.repeat(3 - Math.max(0, S.lives)); }
+function nextItem() {
+  if (S.idx >= S.items.length) { if (S.round < 2) { setRound(S.round + 1); } else finish(); return; }
+  var it = S.items[S.idx]; S.cur = it;
+  crate.f = crateFor(it.food); crate.on = true; crate.x = 0; crate.z = 3.3; crate.y = 7; crate.s = 1; crate.ry = 0;
+  S.anim = { kind: 'drop', t0: now(), dur: 450 * SPEED };
+  $('food').textContent = it.food; $('sign').style.display = 'block'; $('btns').style.display = 'flex'; $('toast').style.display = 'none';
+  S.state = 'ask'; S.t0 = now() + 450 * SPEED; S.limit = ROUND_SECONDS[S.round] * 1000 * SPEED;
+}
+function answer(feed) {
+  if (S.state !== 'ask') return;
+  var it = S.cur, timedOut = feed === null, ok = !timedOut && feed === it.safe;
+  var left = Math.max(0, 1 - (now() - S.t0) / S.limit);
+  S.total++; S.log.push({ food: it.food, safe: it.safe, feed: feed, ok: ok, round: D.rounds[S.round].id });
+  if (ok) { S.right++; S.streak++; S.score += 100 + Math.min(100, 25 * (S.streak - 1)) + Math.round(50 * left); }
+  else { S.lives--; S.streak = 0; S.missed.push({ food: it.food, why: it.why, round: S.round }); }
+  $('pts').textContent = S.score; hearts();
+  var toBowl = timedOut ? false : feed;
+  S.anim = { kind: toBowl ? 'feed' : 'toss', t0: now(), dur: 600 * SPEED, from: [crate.x, crate.y, crate.z], to: toBowl ? [bowl.x, 0.45, bowl.z] : [bin.x, 1.6, bin.z] };
+  S.mood = { kind: ok ? 'happy' : 'sad', t0: now() };
+  var t = $('toast'); t.className = ok ? 'ok' : 'bad'; t.textContent = '';
+  var head = document.createElement('b'), body = document.createElement('div'), src = document.createElement('div');
+  head.textContent = ok ? (it.safe ? '✅ Yes! That one is safe.' : '✅ Good toss! Never feed it.') : timedOut ? (it.safe ? '⏰ Too slow! That one was safe.' : '⏰ Too slow! Never feed this one.') : (it.safe ? '❌ Oops, that one is safe.' : '❌ Never feed this one!');
+  body.textContent = it.food + ': ' + it.why; src.className = 'src'; src.textContent = 'Source: ' + it.src.join(', ');
+  t.appendChild(head); t.appendChild(body); t.appendChild(src);
+  if (!ok) { var tap = document.createElement('div'); tap.className = 'tap'; tap.textContent = 'Tap here to go on'; t.appendChild(tap); }
+  t.style.display = 'block'; $('btns').style.display = 'none';
+  S.state = 'resolve'; S.wait = now() + (ok ? 1700 : 5500) * SPEED;
+}
+function goOn() {
+  if (S.state !== 'resolve') return;
+  $('toast').style.display = 'none'; crate.on = false; S.idx++;
+  if (S.lives <= 0) { finish(); return; }
+  nextItem();
+}
+function finish() {
+  S.state = 'end'; $('sign').style.display = 'none'; $('btns').style.display = 'none'; $('toast').style.display = 'none'; crate.on = false;
+  var pct = S.total ? S.right / S.total : 0;
+  $('rank').textContent = S.lives <= 0 ? 'Out of hearts!' : pct >= 0.9 ? 'Backyard Pro! 🏆' : pct >= 0.7 ? 'Good Keeper! 🌱' : 'Keep Learning! 📚';
+  $('score').textContent = S.score + ' pts';
+  $('right').textContent = S.right + ' of ' + S.total + ' right' + (S.lives <= 0 ? ' before the hearts ran out.' : '.');
+  var m = $('missed'); m.textContent = '';
+  if (!S.missed.length) { m.textContent = 'You got every snack right!'; }
+  else {
+    var h = document.createElement('b'); h.textContent = 'Snacks to remember:'; m.appendChild(h);
+    S.missed.slice(0, 5).forEach(function (x) { var d = document.createElement('div'); d.textContent = '• ' + x.food + ': ' + x.why; m.appendChild(d); });
+  }
+  var miss = [0, 0, 0]; S.missed.forEach(function (x) { miss[x.round]++; });
+  var worst = miss.indexOf(Math.max.apply(null, miss)), anyMiss = S.missed.length > 0, R = D.rounds[anyMiss ? worst : S.round];
+  $('chart').href = anyMiss ? R.chart : D.shop;
+  $('chart').textContent = anyMiss ? '📄 Get the printable ' + R.name.toLowerCase() + ' food chart' : '📄 See all the printable food charts';
+  $('yt').href = D.youtube;
+  $('doubt').textContent = (R.doubt ? R.doubt + ' ' : '') + 'General info only, not vet advice.';
+  try { var best = +localStorage.getItem('bsc_best') || 0; if (S.score > best) localStorage.setItem('bsc_best', String(S.score)); } catch (e) {}
+  $('end').style.display = 'flex';
+}
+function start() {
+  S.lives = 3; S.score = 0; S.streak = 0; S.right = 0; S.total = 0; S.missed = []; S.log = [];
+  $('pts').textContent = '0'; hearts(); $('title').style.display = 'none'; $('end').style.display = 'none';
+  setRound(0);
+}
+$('play').onclick = start; $('again').onclick = start;
+$('feed').onclick = function () { answer(true); }; $('toss').onclick = function () { answer(false); };
+$('toast').onclick = goOn;
+addEventListener('keydown', function (e) {
+  var k = e.key.toLowerCase();
+  if (S.state === 'ask' && (k === 'arrowleft' || k === 'a')) answer(true);
+  else if (S.state === 'ask' && (k === 'arrowright' || k === 'd')) answer(false);
+  else if (S.state === 'resolve' && (k === 'enter' || k === ' ')) goOn();
+  else if ((S.state === 'title' || S.state === 'end') && k === 'enter') start();
+});
+// drag the yard to look around (3D)
+var dragX = null;
+cv.addEventListener('pointerdown', function (e) { dragX = e.clientX; });
+addEventListener('pointerup', function () { dragX = null; });
+addEventListener('pointermove', function (e) { if (dragX === null) return; cam.drag = Math.max(-0.75, Math.min(0.75, cam.drag + (e.clientX - dragX) * -0.004)); dragX = e.clientX; });
+
+function tick() {
+  var t = now(), sec = t / 1000;
+  cam.yaw = 0.16 * Math.sin(sec * 0.23);
+  if (S.state === 'intro' && t >= S.wait) { $('intro').style.display = 'none'; nextItem(); }
+  if (S.state === 'ask') {
+    var left = 1 - (t - S.t0) / S.limit; $('tbar').style.width = (Math.max(0, Math.min(1, left)) * 100).toFixed(1) + '%';
+    if (left <= 0) answer(null);
+  }
+  if (S.state === 'resolve' && t >= S.wait) goOn();
+  var a = S.anim;
+  if (a) {
+    var k = Math.min(1, (t - a.t0) / Math.max(1, a.dur));
+    if (a.kind === 'drop') { var e = 1 - Math.pow(1 - k, 3); crate.y = 7 * (1 - e) + Math.abs(Math.sin(k * 9)) * (1 - k) * 0.25; }
+    else { crate.x = a.from[0] + (a.to[0] - a.from[0]) * k; crate.z = a.from[2] + (a.to[2] - a.from[2]) * k; crate.y = a.from[1] + (a.to[1] - a.from[1]) * k + Math.sin(k * Math.PI) * 2.4; crate.ry = k * 2.2; crate.s = k > 0.7 ? Math.max(0.01, 1 - (k - 0.7) / 0.3) : 1; }
+    if (k >= 1) { if (a.kind !== 'drop') crate.on = false; S.anim = null; }
+  }
+  Object.keys(animals).forEach(function (key) {
+    var o = animals[key]; if (!o.on) return; var m = S.mood, mk = m ? (t - m.t0) / 900 : 2;
+    o.y = Math.abs(Math.sin(sec * 3.2)) * 0.06; o.ry = Math.sin(sec * 1.1) * 0.18; o.sy = 1;
+    if (m && mk < 1 && m.kind === 'happy') { o.y = Math.sin(mk * Math.PI * 2 % Math.PI) * 0.9; o.sy = 1 + Math.sin(mk * Math.PI * 4) * 0.08; }
+    if (m && mk < 1 && m.kind === 'sad') { o.ry = Math.sin(mk * Math.PI * 8) * 0.45; o.sy = 0.92; }
+  });
+  var faces = draw(ground, [bowl, bin, coop, hutch].concat(scene, [animals.chicken, animals.rabbit, animals.guinea, crate]));
+  window.__faces = faces;
+  requestAnimationFrame(tick);
+}
+// test hooks (read-only views + the same answer() a tap calls)
+window.__game = {
+  state: function () { return S.state; }, item: function () { return S.cur ? { food: S.cur.food, safe: S.cur.safe } : null; },
+  answer: answer, goOn: goOn, start: start,
+  stats: function () { return { score: S.score, right: S.right, total: S.total, lives: S.lives, round: S.round, missed: S.missed.length }; },
+  links: function () { return { yt: $('yt').href, chart: $('chart').href }; }
+};
+if (!D || !D.rounds) { $('title').querySelector('p').textContent = 'The snack list is missing. Please reload.'; $('play').disabled = true; }
+addEventListener('resize', resize); resize(); hearts();
+Object.keys(animals).forEach(function (k) { animals[k].on = k === 'chicken'; }); hutch.on = false;
+requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
